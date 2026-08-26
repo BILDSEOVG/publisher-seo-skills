@@ -10,19 +10,110 @@ Findet spezifische Content-Nischen (nicht grobe Ressorts), die stark gesucht wer
 
 ---
 
+## ⚠ Was hier NICHT reinkommt — Ausschlussliste
+
+Diese Kategorien aktiv filtern. Ohne Filter landen sie vorne in der Ergebnisliste und machen das Ergebnis unbrauchbar.
+
+### Cluster-Typen die rausfliegen
+
+| Kategorie | Beispiel-Cluster | Warum raus |
+|---|---|---|
+| **Online-Spiele** | spiele.stern.de/solitaer, games.focus.de/mahjong | Anderes Produkt, kein redaktioneller Content |
+| **Sportwetten / Gambling** | kicker.de/wetten, sport1.de/sportwetten | Regulatorisch, anderes Geschäftsmodell |
+| **Online-Apotheke** | apotheken-umschau.de/produkte | E-Commerce, kein Publisher-Thema |
+| **Kreditkarten & Bankprodukte** | focus.de/finanzen/kreditkarte, check24.de/kreditkarten | Vergleichsportal-Logik, kein Ratgeber |
+| **Kaufberatung / Test / Vergleich** | stern.de/kaufkosmos, focus.de/kaufberatung | Testberichte sind anderes Content-Format |
+| **Sub-Domain-Silos die kein redakt. Thema sind** | email.t-online.de, login.stern.de | Technische Bereiche, kein Content |
+| **Gattungsnamen ohne Tiefe** | stern.de/panorama, focus.de/wohnen | Ressort-Label, keine spezifische Nische |
+
+### Keywords die vorab rausgefiltert werden (Stufe 0 — vor allem anderen)
+
+Brand-Keywords haben in der Analyse nichts zu suchen. Sie produzieren Cluster wie `t-online.de` mit 11 Mio. Traffic, obwohl kein einziges davon ein redaktionelles Themenfeld ist. Wenn dieser Filter fehlt, dominieren Brand-Cluster die gesamte Top-Liste.
+
+Ein Keyword ist ein Brand-Keyword wenn es:
+- den Domain-Namen enthält (stern, focus, t-online, bild, spiegel)
+- eine Domain-Schreibweise ist (.de, .com, Punkt+Buchstaben)
+- eine Marken-Variation ist (t online, tonline, t-online.de)
+- ein Service-Keyword der Marke ist (t-online mail, focus login, stern newsletter)
+
+```python
+_BRAND_TOKENS = {
+    "stern", "focus", "t-online", "tonline", "bild", "spiegel",
+    "zeit", "welt", "sueddeutsche", "faz", "tagesspiegel",
+    # Publisher-spezifisch ergänzen
+}
+_BRAND_IN_KW = (".de", ".com", "login", " mail", " app", " abo", " plus")
+
+def is_brand_keyword(kw: str, competitor_domains: list[str]) -> bool:
+    lower = kw.lower()
+    # Domain-Schreibvarianten
+    for domain in competitor_domains:
+        base = domain.replace(".de", "").replace(".", "").replace("-", "")
+        if base in lower.replace(" ", "").replace("-", ""):
+            return True
+    for token in _BRAND_TOKENS:
+        if token in lower:
+            return True
+    for suffix in _BRAND_IN_KW:
+        if suffix in lower:
+            return True
+    return False
+```
+
+---
+
+## Was macht einen GUTEN Cluster aus
+
+Ein guter Cluster ist eine spezifische, planbare Nische — kein Ressort-Label.
+
+### Gut ✓ vs. Schlecht ✗
+
+| Schlecht (zu breit) | Gut (spezifisch) | Warum besser |
+|---|---|---|
+| `focus.de/wohnen` | **Haushaltstipps** (natron fußbad, essig gegen kalk) | Konkreter Intent: Alltagsprobleme lösen |
+| `t-online.de/garten` | **Gartentipps Sommer** (bougainvillea überwintern, wann darf man nicht mähen) | Saisonales Muster, planbar |
+| `stern.de/lifestyle/leute` | **Promi-Kinder** (pax thien jolie-pitt, zahara jolie-pitt) | Spezifisches Cluster, nicht "alle Promis" |
+| `stern.de/lifestyle/leute` | **Tanja Spengler** | Einzelperson als eigenes Cluster wenn Traffic groß genug |
+| `focus.de/gesundheit/ratgeber` | **Neue Medikamente** (viagra frauen, pille für den mann, abnehmpille höhle der löwen) | Spezifischer Keyword-Intent: "Was gibt es Neues in der Medizin?" |
+| `focus.de/gesundheit/ratgeber` | **Warnsignale & übersehene Symptome** (zuckendes auge warnsignal, schmerzen linker arm) | Eigenständige Nische mit klarem Leserbedürfnis |
+| `focus.de/gesundheit/ratgeber` | **Atemwegs-Ratgeber** (keuchhusten trotz impfung, kopfgrippe, nasenspülung wasser bleibt im kopf) | Konkrete Beschwerden, nicht "Gesundheit allgemein" |
+
+**Faustregel:** Wenn man die Keywords laut vorliest und sie klingen wie "Sachen die jemand googelt der ein konkretes Problem hat" → gutes Cluster. Wenn sie klingen wie ein Zeitschriften-Ressort → zu breit.
+
+### Erkennungsmerkmale guter Cluster
+
+- **Keyword-Intent ist einheitlich**: Alle Top-Keywords haben dasselbe Leserbedürfnis
+- **Mindestens 3 verschiedene Keywords** die auf dasselbe Thema zeigen
+- **Planbar**: Das Thema wird jedes Jahr zu einer ähnlichen Zeit gesucht (oder gleichmäßig ganzjährig)
+- **Kein Eigenname-Monopol**: Wenn 9 von 10 Keywords ein einzelner Prominame sind → eher Einzelperson-Cluster statt Themenfeld
+
+---
+
+## Bekannte Schwäche: URL-Pfade sind grobe Proxies
+
+Das URL-Cluster-Verfahren gruppiert Keywords nach der Pfadstruktur der Wettbewerber. Das erzeugt oft zu breite Cluster:
+
+- `focus.de/immobilien/wohnen` enthält *sowohl* Immobilien-Keywords *als auch* Haushalts-Tipps — weil focus.de beides unter `/wohnen` ablegt
+- `stern.de/gesundheit` enthält Ratgeber-Tipps, Produktrückrufe UND Medizin-News
+
+**Konsequenz**: Nach der URL-Clusterung die Keyword-Liste des Clusters durchsehen und manuell (oder per LLM-Klassifikation) in Sub-Cluster aufteilen, wenn der Intent zu gemischt ist. Der URL-Cluster-Name ist Ausgangspunkt, nicht Endpunkt.
+
+---
+
 ## 1. Methodischer Rahmen
 
 ### Kernfrage
 Welche Themenfelder werden regelmäßig und vorhersehbar gesucht, bei denen der Publisher aktuell kaum rankt?
 
-### Zweistufiger Trichter
+### Vierstufiger Trichter
 ```
-Sistrix (Wettbewerber-URL-Cluster) → Trichter → Google Trends (Planbarkeits-Score)
+Stufe 0: Brand-Keywords filtern (KRITISCH — zuerst)
+Stufe 1: Wettbewerber-URL-Cluster bauen (Sistrix)
+Stufe 2: Publisher-Lücken klassifizieren (Sistrix)
+Stufe 3: Planbarkeits-Score (Google Trends)
 ```
 
-Sistrix liefert die Hypothesen über Themenfelder. Google Trends validiert, ob das Muster planbar ist. Das Trends-Quota (100 req/day bei der offiziellen v1alpha API) macht diesen Trichter zwingend notwendig.
-
-### Zwei Ausgabetypen mit unterschiedlichen Handlungsempfehlungen
+### Zwei Ausgabetypen
 
 | Typ | Befund | Handlungsempfehlung |
 |---|---|---|
@@ -31,339 +122,234 @@ Sistrix liefert die Hypothesen über Themenfelder. Google Trends validiert, ob d
 
 ---
 
-## 2. Stufe 1 — Wettbewerber-URL-Cluster (Sistrix)
+## 2. Stufe 0 — Brand-Keywords und Blacklist-Cluster ausschließen
 
-### Ziel
-Nicht eine flache Keyword-Liste, sondern **Content-Nischen**: Gruppen von Keywords, die alle auf denselben redaktionellen Bereich zeigen.
+**KRITISCHER SCHRITT — muss vor allem anderen passieren.**
 
-### Vorgehen
-
-#### 2.1 Keyword-Rankings mit URLs ziehen
-Für jeden Wettbewerber (z.B. stern.de, focus.de, t-online.de): Keywords + Ranking-URL abrufen.
+Wenn man diesen Schritt überspringt, dominieren Brand-Navigational-Cluster (t-online.de mit 11 Mio. Traffic, focus.de mit 2 Mio. Traffic) die gesamte Ergebnisliste und das Ergebnis ist wertlos.
 
 ```python
-from backend.content_radar.sistrix import fetch_keywords_sistrix
-import os
+_BRAND_TOKENS = {
+    "stern", "focus", "t-online", "tonline", "bild", "spiegel",
+    "zeit", "welt", "sueddeutsche", "faz",
+}
+_BRAND_IN_KW = (".de", ".com", " mail", " login", " abo", " app", " plus", " online")
+
+def is_brand_keyword(kw: str, competitor_domains: list[str]) -> bool:
+    lower = kw.lower()
+    for domain in competitor_domains:
+        base = domain.replace(".de", "").replace("-", "")
+        if base in lower.replace(" ", "").replace("-", ""):
+            return True
+    for token in _BRAND_TOKENS:
+        if token in lower:
+            return True
+    for suffix in _BRAND_IN_KW:
+        if suffix in lower:
+            return True
+    return False
+
+def filter_brand_keywords(rows: list[dict], competitor_domains: list[str]) -> list[dict]:
+    return [r for r in rows if not is_brand_keyword(r.get("kw", ""), competitor_domains)]
+```
+
+### URL-Cluster Blacklist (Pfad-basiert)
+
+Nach der Clusterung noch mal filtern — Cluster raus, deren Pfad einer dieser Kategorien entspricht:
+
+```python
+_CLUSTER_BLACKLIST_SEGS = {
+    # Spiele
+    "spiele", "games", "solitaer", "solitaire", "mahjong", "puzzle", "spielen",
+    # Gambling / Wetten
+    "sportwetten", "wetten", "casino", "gambling", "glücksspiel",
+    # E-Commerce / Vergleichsportale
+    "kreditkarte", "kreditkarten", "kredit", "apotheke", "online-apotheke",
+    "kaufberater", "kaufkosmos", "testberichte", "test-und-vergleich",
+    # Technische Sub-Domains ohne Content
+    "email", "mail", "login", "account", "mein", "mediathek",
+}
+
+def is_blacklisted_cluster(cluster_key: str) -> bool:
+    segs = set(s.lower() for s in cluster_key.split("/"))
+    return bool(segs & _CLUSTER_BLACKLIST_SEGS)
+
+def filter_blacklisted(clusters: list[dict]) -> list[dict]:
+    return [c for c in clusters if not is_blacklisted_cluster(c["cluster"])]
+```
+
+### Keyword-Blacklist (kaufen / vergleich / test)
+
+Keywords die auf Transaktions- oder Kaufentscheidungs-Intent hinweisen — kein redaktionelles Themenfeld:
+
+```python
+_KW_INTENT_BLACKLIST = {
+    "kaufen", "bestellen", "preisvergleich", "vergleich", "test 20", "testsieger",
+    "günstig", "angebot", "rabatt", "coupon", "gutschein",
+}
+
+def is_transactional_keyword(kw: str) -> bool:
+    lower = kw.lower()
+    return any(token in lower for token in _KW_INTENT_BLACKLIST)
+```
+
+---
+
+## 3. Stufe 1 — Wettbewerber-URL-Cluster bauen (Sistrix)
+
+```python
+from backend.content_radar.sistrix import domain_keywords_all
+from backend.content_gap.clusters import build_competitor_clusters
 
 COMPETITORS = ["stern.de", "focus.de", "t-online.de"]
+KW_PER_DOMAIN = 3000
 
 competitor_data = {}
 for domain in COMPETITORS:
-    keywords = fetch_keywords_sistrix(
-        domain=domain,
-        api_key=os.getenv("SISTRIX_API_KEY")
-    )
-    # keywords: [{"keyword": str, "url": str, "position": int, "volume": int}, ...]
-    competitor_data[domain] = keywords
+    raw = domain_keywords_all(domain, api_key, total=KW_PER_DOMAIN)
+    competitor_data[domain] = filter_brand_keywords(raw, COMPETITORS)  # Stufe 0!
+
+clusters = build_competitor_clusters(competitor_data, min_keywords=3, min_traffic=50)
+clusters = filter_blacklisted(clusters)
 ```
 
-#### 2.2 URLs auf 2–3 Pfadsegmente normieren
+### URL-Normierung auf 2–3 Segmente
 
 ```python
 from urllib.parse import urlparse
 from pathlib import PurePosixPath
 
-def normalize_url_to_cluster(url: str, depth: int = 3) -> str:
+_ARTICLE_SIGNALS = ("_id", "id_", "_artikel", "_news", "_beitrag")
+
+def is_article_segment(seg: str) -> bool:
+    lower = seg.lower()
+    return (
+        any(sig in lower for sig in _ARTICLE_SIGNALS)
+        or lower.endswith((".html", ".htm", ".php"))
+        or len(seg) > 60
+        or (len(seg) > 15 and sum(c.isdigit() for c in seg) > 4)
+    )
+
+def normalize_url(url: str, depth: int = 3) -> str:
     """
-    https://www.focus.de/finanzen/ratgeber/rente/grundrente-berechnen_id123.html
+    https://www.focus.de/finanzen/ratgeber/rente/grundrente_id123.html
     → focus.de/finanzen/ratgeber/rente
     """
     parsed = urlparse(url)
     domain = parsed.netloc.replace("www.", "")
     parts = [p for p in PurePosixPath(parsed.path).parts if p and p != "/"]
-    cluster_path = "/".join(parts[:depth])
-    return f"{domain}/{cluster_path}"
-
-# Artikel-IDs und Parameter herausfiltern
-def is_article_segment(segment: str) -> bool:
-    """True wenn das Segment wie eine Artikel-ID aussieht (enthält _id, Zahl, sehr lang)."""
-    return (
-        "_id" in segment
-        or segment.isdigit()
-        or (len(segment) > 60)
-        or segment.endswith(".html")
-    )
-
-def smart_normalize(url: str, max_depth: int = 3) -> str:
-    parsed = urlparse(url)
-    domain = parsed.netloc.replace("www.", "")
-    parts = [p for p in PurePosixPath(parsed.path).parts if p and p != "/"]
-    clean_parts = [p for p in parts if not is_article_segment(p)]
-    cluster_path = "/".join(clean_parts[:max_depth])
-    return f"{domain}/{cluster_path}" if cluster_path else domain
-```
-
-#### 2.3 Cluster aggregieren
-
-```python
-from collections import defaultdict
-
-clusters = defaultdict(lambda: {"keywords": [], "total_volume": 0, "domains": set()})
-
-for domain, keywords in competitor_data.items():
-    for kw in keywords:
-        cluster_key = smart_normalize(kw["url"])
-        clusters[cluster_key]["keywords"].append(kw["keyword"])
-        clusters[cluster_key]["total_volume"] += kw.get("volume", 0)
-        clusters[cluster_key]["domains"].add(domain)
-
-# Sortieren nach Gesamtvolumen
-sorted_clusters = sorted(
-    [{"cluster": k, **v} for k, v in clusters.items()],
-    key=lambda x: x["total_volume"],
-    reverse=True
-)
+    clean = [p for p in parts if not is_article_segment(p)]
+    cluster = "/".join(clean[:depth])
+    return f"{domain}/{cluster}" if cluster else domain
 ```
 
 ---
 
-## 3. Stufe 2 — Publisher-Lücken klassifizieren (Sistrix)
+## 4. Stufe 2 — Publisher-Lücken klassifizieren
 
-### Ziel
-Jeden Wettbewerber-Cluster als Typ B (schlechtes Ranking) oder Typ C (kein Cluster) klassifizieren.
+### Das Grundproblem: Keyword-Matching vs. URL-Semantik
 
-### Vorgehen
+Für News-Publisher wie BILD gilt: Die Top-3.000 Keywords aus Sistrix sind fast ausschließlich Brand-Navigational-Queries (Platz 1 für "bild", "bild.de", "bild zeitung"). Content-Keywords (wo BILD auf Pos. 10–40 rankt) liegen tiefer in der Liste.
+
+**Konsequenz:** Reines Keyword-Matching ergibt 0 Überschneidungen und 100% Typ C — obwohl BILD viele Themenfelder bereits abdeckt.
+
+**Lösung: URL-semantisches Matching** (zusätzlich zum Keyword-Matching):
+1. BILD's URL-Cluster aufbauen (welche Pfad-Segmente hat BILD in seiner Top-Liste?)
+2. Mit Competitor-Pfad-Segmenten abgleichen
+3. Vollständige Überschneidung → aktiv; Teilüberschneidung bei 2+ Pfad-Segmenten → Typ B; keine → Typ C
 
 ```python
-publisher_keywords = fetch_keywords_sistrix(
-    domain="bild.de",  # oder anderer Publisher
-    api_key=os.getenv("SISTRIX_API_KEY")
-)
-
-# Index: keyword → position
-publisher_index = {kw["keyword"]: kw["position"] for kw in publisher_keywords}
-
-# Index: cluster_key → hat publisher URLs in diesem Bereich
-publisher_clusters = set()
-for kw in publisher_keywords:
-    publisher_clusters.add(smart_normalize(kw["url"]))
-
-def classify_gap(cluster: dict, publisher_index: dict, publisher_clusters: set) -> str:
+def classify_gaps_semantic(clusters, publisher_rows, position_threshold=30):
     """
-    Typ C: Publisher hat keinen eigenen URL-Cluster in diesem Bereich
-    Typ B: Publisher hat Cluster, aber rankt für Top-Keywords nicht in Top 30
-    Kein Gap: Publisher rankt für ≥1 Top-Keyword in Top 30
+    Pass 1: Exaktes Keyword-Matching → aktiv / Typ B
+    Pass 2: URL-Segment-Matching → aktiv / Typ B / Typ C
     """
-    # Prüfe ob Publisher eigenen Cluster hat
-    has_publisher_cluster = any(
-        pc.split("/")[0] == "bild.de"  # publisher domain
-        and "/".join(cluster["cluster"].split("/")[1:]) in pc
-        for pc in publisher_clusters
-    )
+    # Pass 1
+    pub_kw_pos = {}
+    for row in publisher_rows:
+        kw, pos = row.get("kw"), row.get("position")
+        if kw and pos is not None:
+            pub_kw_pos[kw] = min(pub_kw_pos.get(kw, 999), int(pos))
 
-    # Prüfe Ranking für Top-Keywords des Clusters
-    top_keywords = sorted(cluster["keywords"], key=lambda k: publisher_index.get(k, 999))[:10]
-    best_position = min((publisher_index.get(kw, 999) for kw in top_keywords), default=999)
+    # Pass 2: Publisher URL-Segmente aufbauen
+    pub_segs = build_publisher_topic_segs(publisher_rows, min_kws_per_cluster=5)
 
-    if not has_publisher_cluster and best_position > 30:
-        return "C"  # Kein Cluster → aufbauen
-    elif best_position > 30:
-        return "B"  # Cluster vorhanden aber schlecht → optimieren
-    else:
-        return "active"  # Publisher ist aktiv
+    result = []
+    for cluster in clusters:
+        top_kws = cluster["top_keywords"][:10]
+        best = min((pub_kw_pos.get(kw, 999) for kw in top_kws), default=999)
 
-for cluster in sorted_clusters:
-    cluster["gap_type"] = classify_gap(cluster, publisher_index, publisher_clusters)
+        if best <= position_threshold:
+            gap_type = "active"
+        elif best < 999:
+            gap_type = "B"
+        else:
+            # URL-Semantik
+            comp_segs = url_path_segs(cluster["cluster"])
+            shared = comp_segs & pub_segs
+            depth = len(cluster["cluster"].split("/")) - 1
 
-gap_clusters = [c for c in sorted_clusters if c["gap_type"] in ("B", "C")]
+            if not comp_segs or len(shared) == len(comp_segs):
+                gap_type = "active"
+            elif shared and depth >= 2:
+                gap_type = "B"
+            else:
+                gap_type = "C"
+
+        result.append({**cluster, "gap_type": gap_type})
+    return result
 ```
 
 ---
 
-## 4. Stufe 3 — Planbarkeits-Score (Google Trends)
+## 5. Stufe 3 — Planbarkeits-Score (Google Trends)
 
-### Ziel
-Aus den Gap-Clustern nur solche behalten, die **wiederkehrende, planbare Suchmuster** zeigen — keine Einmal-Events.
+### Wichtig: Token-Management
 
-### Repräsentant-Keyword auswählen
+Google Trends v1alpha benötigt OAuth2. Das Token läuft nach einigen Wochen ab (`invalid_grant`). Refresh-Skript:
 
-Pro Cluster genau 1 Keyword → 1 Trends-Call.
+```bash
+bash .claude/skills/api-access/get-google-trends-token.sh
+```
+
+Danach das Skript erneut ausführen — Sistrix-Daten kommen aus dem 7-Tage-Cache (0s), nur Trends-Calls werden neu gemacht.
+
+### Scoring
 
 ```python
-def pick_representative_keyword(cluster: dict, publisher_index: dict) -> str:
-    """
-    Wählt das volumenstärkste Keyword, das nicht zu generisch ist
-    und nicht wie ein Event-Keyword aussieht.
-    """
-    candidates = sorted(
-        cluster["keywords"],
-        key=lambda k: -sum(
-            kw.get("volume", 0)
-            for kw in competitor_data_flat
-            if kw["keyword"] == k
-        )
-    )
-    # Einfache Event-Filter: Keywords mit Jahreszahlen oder Namen bevorzugt überspringen
-    for kw in candidates:
-        tokens = kw.lower().split()
+async def score_planability(points: list) -> dict:
+    values = [p.get("scaledSearchInterest") or 0 for p in points]
+    if len(values) < 20:
+        return {"planability": None, "seasonality": None, "peak_month": None}
+
+    half = len(values) // 2
+    y1, y2 = values[:half], values[half:]
+    # Pearson-Korrelation Jahr 1 vs Jahr 2 = Saisonalitäts-Score
+    corr = pearson(y1[:min(len(y1), len(y2))], y2[:min(len(y1), len(y2))])
+    seasonality = max(0.0, corr)
+
+    # Spike-Penalty: wenn max > 3× Median → vermutlich Einmal-Event
+    non_zero = [v for v in values if v > 0]
+    median = sorted(non_zero)[len(non_zero) // 2] if non_zero else 1
+    spike_ratio = max(values) / median if median > 0 else 1
+    spike_penalty = min(1.0, max(0.0, (spike_ratio - 3) / 7))
+
+    planability = round(seasonality * (1 - spike_penalty), 2)
+    return {"planability": planability, "peak_month": _calc_peak_month(values)}
+```
+
+### Vertreter-Keyword auswählen (Jahreszahlen und Event-Tokens vermeiden)
+
+```python
+_EVENT_TOKENS = {"heute", "aktuell", "jetzt", "live", "2023", "2024", "2025", "2026", "2027"}
+
+def pick_keyword(cluster: dict) -> str:
+    for kw in cluster["top_keywords"]:
+        tokens = set(kw.lower().split())
         has_year = any(t.isdigit() and len(t) == 4 for t in tokens)
-        if not has_year:
+        if not has_year and not (tokens & _EVENT_TOKENS):
             return kw
-    return candidates[0]  # Fallback
-```
-
-### Saisonalitäts- und Planbarkeits-Score
-
-```python
-import numpy as np
-from backend.google_trends.client import GoogleTrendsClient
-
-async def score_plannability(keyword: str, client: GoogleTrendsClient) -> dict:
-    """
-    Holt 2 Jahre Zeitreihe und berechnet zwei Scores:
-    - seasonality_score: Wiederkehrendes Jahresmuster (0-1)
-    - spike_penalty: Strafe für einmalige Ausreißer (0-1, höher = schlechter)
-    """
-    # 730 Tage = 2 Jahre (innerhalb des 1800-Tage-Limits)
-    ts = await client.fetch_time_series(keyword, country="DE", start_days_ago=730, resolution="WEEK")
-    values = [point["value"] for point in ts]
-
-    if len(values) < 52:
-        return {"keyword": keyword, "seasonality_score": 0, "spike_penalty": 1, "peak_month": None}
-
-    values_np = np.array(values, dtype=float)
-
-    # Saisonalitätsindex: Korrelation Jahr 1 vs Jahr 2
-    year1 = values_np[:52]
-    year2 = values_np[52:104] if len(values_np) >= 104 else values_np[52:]
-    min_len = min(len(year1), len(year2))
-    if min_len > 10:
-        corr = float(np.corrcoef(year1[:min_len], year2[:min_len])[0, 1])
-        seasonality_score = max(0, corr)  # nur positive Korrelation zählt
-    else:
-        seasonality_score = 0
-
-    # Spike-Penalty: Strafpunkt wenn maximaler Wert > 3× Median (Einmal-Event-Signal)
-    median = float(np.median(values_np[values_np > 0])) if np.any(values_np > 0) else 1
-    max_val = float(np.max(values_np))
-    spike_ratio = max_val / median if median > 0 else 1
-    spike_penalty = min(1.0, max(0, (spike_ratio - 3) / 7))  # 0 bei ratio≤3, 1 bei ratio≥10
-
-    # Peak-Monat aus Jahr 1
-    peak_week = int(np.argmax(year1))
-    peak_month = (peak_week // 4) + 1  # Näherung: Woche → Monat
-
-    return {
-        "keyword": keyword,
-        "seasonality_score": round(seasonality_score, 2),
-        "spike_penalty": round(spike_penalty, 2),
-        "planability_score": round(seasonality_score * (1 - spike_penalty), 2),
-        "peak_month": peak_month,
-    }
-```
-
-### Batch-Scoring mit Quota-Management
-
-```python
-import asyncio
-
-async def score_top_clusters(gap_clusters: list, max_calls: int = 90) -> list:
-    """
-    Scored die Top-N Cluster per Google Trends.
-    max_calls: unter 100 bleiben (daily quota).
-    """
-    client = GoogleTrendsClient()
-
-    # Vorfilter: nur Cluster mit Volumen > 5.000 und ≥ 5 Keywords
-    candidates = [
-        c for c in gap_clusters
-        if c["total_volume"] >= 5000 and len(c["keywords"]) >= 5
-    ][:max_calls]
-
-    results = []
-    for cluster in candidates:
-        kw = pick_representative_keyword(cluster, publisher_index)
-        score = await score_plannability(kw, client)
-        results.append({**cluster, **score})
-        await asyncio.sleep(0.7)  # rate limit
-
-    return results
-```
-
----
-
-## 5. Stufe 4 — Output: Zwei priorisierte Listen
-
-### Finale Priorisierung
-
-```python
-MONTHS_DE = {
-    1: "Januar", 2: "Februar", 3: "März", 4: "April",
-    5: "Mai", 6: "Juni", 7: "Juli", 8: "August",
-    9: "September", 10: "Oktober", 11: "November", 12: "Dezember"
-}
-
-def build_output(scored_clusters: list) -> dict:
-    plannable = [c for c in scored_clusters if c["planability_score"] >= 0.3]
-
-    type_b = sorted(
-        [c for c in plannable if c["gap_type"] == "B"],
-        key=lambda x: -x["total_volume"] * x["planability_score"]
-    )
-    type_c = sorted(
-        [c for c in plannable if c["gap_type"] == "C"],
-        key=lambda x: -x["total_volume"] * x["planability_score"]
-    )
-
-    return {
-        "optimieren": [  # Inventar updaten
-            {
-                "cluster": c["cluster"],
-                "top_keywords": c["keywords"][:5],
-                "volume": c["total_volume"],
-                "planability": c["planability_score"],
-                "peak_month": MONTHS_DE.get(c.get("peak_month"), "–"),
-                "action": "Bestehende Artikel aktualisieren, Keyword-Abdeckung verbessern",
-            }
-            for c in type_b[:25]
-        ],
-        "aufbauen": [   # Neuen Cluster aufbauen
-            {
-                "cluster": c["cluster"],
-                "top_keywords": c["keywords"][:5],
-                "volume": c["total_volume"],
-                "planability": c["planability_score"],
-                "peak_month": MONTHS_DE.get(c.get("peak_month"), "–"),
-                "action": "Neues Themenfeld redaktionell erschließen, Cluster-Architektur planen",
-            }
-            for c in type_c[:25]
-        ],
-    }
-```
-
-### CSV-Export
-
-```python
-import csv, io
-
-def to_csv(output: dict) -> str:
-    rows = []
-    for item in output["optimieren"]:
-        rows.append({
-            "typ": "B – Optimieren",
-            "cluster": item["cluster"],
-            "top_keywords": " | ".join(item["top_keywords"]),
-            "volumen": item["volume"],
-            "planability_score": item["planability"],
-            "peak_monat": item["peak_month"],
-            "empfehlung": item["action"],
-        })
-    for item in output["aufbauen"]:
-        rows.append({
-            "typ": "C – Aufbauen",
-            "cluster": item["cluster"],
-            "top_keywords": " | ".join(item["top_keywords"]),
-            "volumen": item["volume"],
-            "planability_score": item["planability"],
-            "peak_monat": item["peak_month"],
-            "empfehlung": item["action"],
-        })
-
-    buf = io.StringIO()
-    writer = csv.DictWriter(buf, fieldnames=list(rows[0].keys()))
-    writer.writeheader()
-    writer.writerows(rows)
-    return buf.getvalue()
+    return cluster["top_keywords"][0]
 ```
 
 ---
@@ -374,43 +360,54 @@ def to_csv(output: dict) -> str:
 |---|---|---|
 | URL-Tiefe | 2–3 Segmente | Nischen-Granularität ohne Artikel-Ebene |
 | Gap-Schwellenwert | Position > 30 | De facto unsichtbar in Search |
-| Mindestvolumen | 5.000 / Monat | Relevante Nischen filtern |
-| Min. Keywords/Cluster | 5 | Strukturiertes Themenfeld, kein Einzel-Keyword |
-| Trends-Calls | max. 90/Tag | Sicherheitsabstand zum 100-Limit |
+| Min. Keywords/Cluster | 3 | Für erste Analyse; für finale Empfehlungen eher 5+ |
+| Min. Traffic/Cluster | 50 | Rauschen entfernen |
+| Min. Publisher-URLs/Segment | 5 | URL-Segment gilt als "signifikant" für publisher |
+| Trends-Calls | max. 85–90/Tag | Sicherheitsabstand zum 100-Limit |
 | Planability-Score min. | 0.30 | Erkennbares Saisonmuster vorhanden |
 | Spike-Ratio Grenze | 3× Median | Unterhalb = kein Einmal-Event |
 
 ---
 
-## 7. Datenquellen & Abhängigkeiten
+## 7. Typisches Ergebnis nach allen Filtern
 
-| Quelle | Was | Client |
-|---|---|---|
-| Sistrix API | Keywords + Rankings + URLs für Wettbewerber + Publisher | `backend.content_radar.sistrix.fetch_keywords_sistrix` |
-| Google Trends v1alpha | Zeitreihe pro Keyword (Planbarkeits-Score) | `backend.google_trends.client.GoogleTrendsClient` |
+Erwartbare Größenordnung bei 3 Wettbewerbern × 3.000 Keywords:
 
-Beide Clients in `next-seo-as-tools`. Credentials in `.env`:
-- `SISTRIX_API_KEY`
-- Google Trends OAuth2 via `~/.google-trends/token.json`
+```
+Cluster gesamt: ~370
+  davon aktiv (Publisher ist aktiv): ~20
+  davon Typ B (Oberthema vorhanden, Tiefe fehlt): ~60
+  davon Typ C (echter Gap): ~280
+
+Nach Blacklist-Filter (Spiele, Wetten, Apotheke, Kaufberatung):
+  Typ C reduziert auf: ~220–250
+```
+
+Beispiel-Ergebnis für BILD vs. stern/focus/t-online:
+
+```
+TOP TYP C (neue Cluster aufbauen):
+  Ernährung-Ratgeber      (burrata schwangerschaft, kalorien bier)   150k Traffic
+  Rezepte                 (brot im airfryer, sandwichmaker rezepte)  100k Traffic
+  Wissen/Begriffe-Nische  (gilf bedeutung, baddie, kreuzritter)       67k Traffic
+  Heim/Garten/Tiere       (wespennest entfernen, wie alt werden tauben) 43k
+
+TOP TYP B (Tiefe fehlt):
+  Gesundheit Ratgeber-Tiefe  (warnsignale, neue medikamente)         193k Traffic
+  Finanzen Steuern Ratgeber  (grundsteuer 1000 qm, steuerklasse 2)   14k Traffic
+```
 
 ---
 
-## 8. Typisches Ergebnis-Format
+## 8. Datenquellen & Abhängigkeiten
 
-```
-AUFBAUEN (Typ C) — Neue Cluster erschließen
-──────────────────────────────────────────
-1. focus.de/finanzen/ratgeber/rente         Volumen: 82.000  Score: 0.78  Peak: Oktober
-   Keywords: rente berechnen, grundrente, renteneintrittsalter, ...
-   → Themenfeld "Rente Ratgeber" hat kein BILD-Äquivalent
+| Quelle | Was | Client |
+|---|---|---|
+| Sistrix API | Keywords + Rankings + URLs | `backend.content_radar.sistrix.domain_keywords_all` |
+| Google Trends v1alpha | Zeitreihe pro Keyword | `backend.google_trends.client.GoogleTrendsClient` |
 
-2. stern.de/gesundheit/ernaehrung           Volumen: 61.000  Score: 0.65  Peak: Januar
-   Keywords: abnehmen schnell, kalorien berechnen, intermittierendes fasten, ...
-   → Themenfeld "Ernährung & Abnehmen" nur schwach bei BILD
+Beide in `next-seo-as-tools`. Credentials in `.env`:
+- `SISTRIX_API_KEY`
+- Google Trends OAuth2 über `~/.google-trends/credentials.json`
 
-OPTIMIEREN (Typ B) — Bestehendes verbessern
-──────────────────────────────────────────
-1. bild.de/ratgeber/finanzen                Volumen: 45.000  Score: 0.71  Peak: März
-   Keywords: steuererklärung 2025, steuer frist, steuer tool, ...
-   → BILD rankt auf Pos. 35–60, Wettbewerb auf Pos. 3–10
-```
+Standalone-Skript: `scripts/content_gap_report.py`
