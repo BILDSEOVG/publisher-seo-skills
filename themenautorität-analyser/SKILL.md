@@ -1,10 +1,10 @@
 ---
-name: themenfeld-gap-analyse
+name: themenautorität-analyser
 description: Identifiziert planbare Themenfelder mit hohem Suchvolumen, bei denen ein Publisher noch nicht aktiv ist — durch URL-Cluster-Vergleich mit Wettbewerbern (Sistrix) und Planbarkeits-Scoring (Google Trends). Liefert zwei Handlungslisten: Inventar optimieren (Typ B) und neue Cluster aufbauen (Typ C). Use when asked to find content gaps, topic opportunities, or plannable SEO niches for a publisher.
 tools: Read, Edit, Write, Bash
 ---
 
-# Themenfeld-Gap-Analyse
+# Themenautorität-Analyser
 
 Findet spezifische Content-Nischen (nicht grobe Ressorts), die stark gesucht werden und bei denen der eigene Publisher kaum oder gar nicht sichtbar ist. Fokus auf **planbare, wiederkehrende Muster** — keine Spontan-Events.
 
