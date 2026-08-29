@@ -332,27 +332,21 @@ Bewertungsmaßstab:
 """
 ```
 
-### LLM aufrufen (Claude)
+### Analyse durch Claude (direkt)
+
+Dieser Skill läuft in Claude Code — Claude ist das LLM. Kein externer Prozess nötig.
+
+Nachdem `build_eeat_prompt(data, signals)` den Kontext zusammengestellt hat, analysiert Claude den Inhalt direkt und gibt das Ergebnis als JSON-Objekt aus. Anschließend wird das JSON in die Report-Funktionen übergeben:
 
 ```python
-import subprocess, json, os
+import json, re
 
-def analyze_with_llm(prompt: str) -> dict:
-    """Ruft Claude über die claude CLI auf und parst das JSON-Ergebnis."""
-    result = subprocess.run(
-        ["claude", "--print", prompt],
-        capture_output=True, text=True, timeout=120
-    )
-    output = result.stdout.strip()
-
-    # JSON aus der Antwort extrahieren
-    json_match = re.search(r'\{.*\}', output, re.DOTALL)
-    if json_match:
-        return json.loads(json_match.group())
-    raise ValueError(f"Kein JSON in LLM-Antwort: {output[:300]}")
-```
-
-**Alternativ:** Wenn der Checker als Claude-Code-Skill läuft, gibt Claude die Analyse direkt aus — kein subprocess nötig. In diesem Fall: Prompt ausgeben, Antwort einlesen, JSON parsen.
+def parse_llm_json(text: str) -> dict:
+    """Extrahiert das JSON-Objekt aus Claudes Textantwort."""
+    match = re.search(r'\{.*\}', text, re.DOTALL)
+    if match:
+        return json.loads(match.group())
+    raise ValueError(f"Kein JSON in Antwort: {text[:200]}")
 
 ---
 
@@ -543,10 +537,11 @@ def run_eeat_check(input_value: str, author_name: str = "", want_html: bool = Fa
     # Strukturelle Signale
     signals = extract_structural_signals(data)
 
-    # LLM-Analyse
-    print("  LLM-Analyse läuft…")
-    prompt   = build_eeat_prompt(data, signals)
-    analysis = analyze_with_llm(prompt)
+    # LLM-Analyse: Prompt ausgeben, Claude antwortet direkt
+    prompt = build_eeat_prompt(data, signals)
+    # → Prompt an Claude übergeben; Claude gibt JSON aus
+    # → JSON mit parse_llm_json() einlesen
+    analysis = parse_llm_json(claude_response)  # claude_response = Claudes Antwort auf den Prompt
 
     # Report
     print_report(data, signals, analysis)
@@ -562,26 +557,30 @@ def run_eeat_check(input_value: str, author_name: str = "", want_html: bool = Fa
 
 ## Interaktiver Ablauf (Claude Code Skill)
 
-Wenn dieser Skill in Claude Code ausgeführt wird:
+Wenn dieser Skill in Claude Code ausgeführt wird, übernimmt Claude alle Schritte:
 
-1. **Input erfragen:**
-   ```
-   URL oder Text eingeben (URL bevorzugt, da dann Strukturdaten automatisch geprüft werden):
-   ```
+1. **Input erfragen** (falls nicht im Prompt enthalten):
+   - URL oder Artikeltext
+   - Autor bekannt? (optional — hilft bei reinem Text-Input)
+   - HTML-Report gewünscht? (`~/Downloads/`)
 
-2. **Optionaler Kontext:**
-   ```
-   Autor bekannt? (optional — hilft bei reinem Text-Input):
-   ```
+2. **Extraktion per Python-Skript** (Bash-Tool):
+   - URL → `fetch_article()` → `data`
+   - Text → `wrap_text_input()` → `data`
 
-3. **HTML-Report?**
-   ```
-   HTML-Report in ~/Downloads/ erzeugen? [j/n]
-   ```
+3. **Strukturelle Signale per Python-Skript** (Bash-Tool):
+   - `extract_structural_signals(data)` → `signals`
 
-4. Extraktion → Analyse → Report ausgeben
+4. **Claude analysiert direkt:**
+   - `build_eeat_prompt(data, signals)` → Kontext-String
+   - Claude bewertet alle 8 Dimensionen anhand des Textes und gibt JSON aus
+   - `parse_llm_json(antwort)` → `analysis`
 
-**Bei Fehler (URL nicht erreichbar, Paywall etc.):** User bitten, den Artikeltext direkt einzufügen.
+5. **Report ausgeben:**
+   - Terminal: `print_report(data, signals, analysis)`
+   - Optional HTML: `generate_html_report(data, signals, analysis)` → `~/Downloads/`
+
+**Bei Fehler (URL nicht erreichbar, Paywall, JS-Rendering):** User bitten, den Artikeltext direkt einzufügen — Schritt 3 und 4 funktionieren auch ohne gecrawlten HTML-Kontext.
 
 ---
 
@@ -591,9 +590,9 @@ Wenn dieser Skill in Claude Code ausgeführt wird:
 |---|---|
 | `requests` | URL-Fetch |
 | `beautifulsoup4` + `lxml` | HTML-Parsing |
-| `json`, `re`, `subprocess` | Datenverarbeitung + LLM-Aufruf (stdlib) |
+| `json`, `re` | Datenverarbeitung (stdlib) |
 
-Kein API-Key erforderlich — nutzt Claude Code / claude CLI als LLM-Backend.
+Kein API-Key, kein externer Prozess erforderlich — Claude Code ist das LLM-Backend.
 
 ---
 
