@@ -36,7 +36,7 @@ import pytz
 
 TZ_BERLIN = pytz.timezone("Europe/Berlin")
 USER_AGENT = "SitemapLinkChecker/1.0 (Firefox)"
-SITEMAP_URL = "https://www.bild.de/sitemap-news.xml"  # anpassen je Publisher
+SITEMAP_URL = "https://www.example.com/sitemap-news.xml"  # anpassen je Publisher
 
 def fetch_sitemap() -> BeautifulSoup | None:
     resp = requests.get(SITEMAP_URL, timeout=10, headers={"User-Agent": USER_AGENT})
@@ -98,13 +98,13 @@ def scrape_article(url: str) -> dict:
     if main and not is_video:
         for a in main.find_all("a", class_="text-link"):
             href = a.get("href", "")
-            if "images." in href.lower() or "bildstatic.de" in href.lower():
+            if "images." in href.lower() or YOUR_IMAGE_CDN_DOMAIN in href.lower():  # image-cdn anpassen
                 continue
             if a.find_parent("div", class_="video-centre"):
                 continue
             link_count += 1
             links_detail.append({"href": href, "anchor_text": a.get_text(strip=True)})
-            if href.startswith("/") or "bild.de" in href.lower():
+            if href.startswith("/") or YOUR_DOMAIN in href.lower():  # domain anpassen
                 internal += 1
             else:
                 external += 1
@@ -271,7 +271,7 @@ Jede tägliche Analyse wird in `data/YYYY-MM-DD.json` geschrieben:
   },
   "articles_without_links": [
     {
-      "url": "https://www.bild.de/politik/...",
+      "url": "https://www.example.com/ressort/...",
       "title": "Artikeltitel",
       "category": "Politik",
       "link_count": 0,
@@ -353,8 +353,10 @@ Keine externen API-Keys erforderlich — rein HTTP-basiert.
 
 | Parameter | Wert | Begründung |
 |---|---|---|
-| Sitemap-URL | `https://www.bild.de/sitemap-news.xml` | Publisher anpassen |
-| Link-Klasse | `class="text-link"` | BILD-spezifisch; anpassen bei anderem Publisher |
+| Sitemap-URL | `https://www.example.com/sitemap-news.xml` | Publisher anpassen |
+| Link-Klasse | `class="text-link"` | Publisher-spezifisch; anpassen |
+| Image-CDN-Domain | `bildstatic.de` (Beispiel) | Eigene Bild-CDN-Domain anpassen — Links auf diese Domain werden nicht gezählt |
+| Paywall-Erkennung | `isPremium=true`, `.plus-logo`, `.paywall` | Publisher-spezifisch; anpassen oder entfernen |
 | Max Workers | 10 | ~13 Sek. für 325 Artikel |
 | Timeout | 10 s | Pro Request |
 | History-Länge | 30 Tage | Rollierendes Fenster im Trend-Chart |

@@ -198,15 +198,15 @@ def is_transactional_keyword(kw: str) -> bool:
 ## 3. Stufe 1 — Wettbewerber-URL-Cluster bauen (Sistrix)
 
 ```python
-from backend.content_radar.sistrix import domain_keywords_all
-from backend.content_gap.clusters import build_competitor_clusters
+# Sistrix-Client: liefert eine Liste von Dicts mit {"kw": str, "position": int, "url": str, "traffic": int}
+# Implementierung abhängig von deinem Sistrix-API-Wrapper
 
-COMPETITORS = ["stern.de", "focus.de", "t-online.de"]
+COMPETITORS = ["competitor1.de", "competitor2.de", "competitor3.de"]  # anpassen
 KW_PER_DOMAIN = 3000
 
 competitor_data = {}
 for domain in COMPETITORS:
-    raw = domain_keywords_all(domain, api_key, total=KW_PER_DOMAIN)
+    raw = your_sistrix_client.domain_keywords(domain, total=KW_PER_DOMAIN)
     competitor_data[domain] = filter_brand_keywords(raw, COMPETITORS)  # Stufe 0!
 
 clusters = build_competitor_clusters(competitor_data, min_keywords=3, min_traffic=50)
@@ -249,12 +249,12 @@ def normalize_url(url: str, depth: int = 3) -> str:
 
 ### Das Grundproblem: Keyword-Matching vs. URL-Semantik
 
-Für News-Publisher wie BILD gilt: Die Top-3.000 Keywords aus Sistrix sind fast ausschließlich Brand-Navigational-Queries (Platz 1 für "bild", "bild.de", "bild zeitung"). Content-Keywords (wo BILD auf Pos. 10–40 rankt) liegen tiefer in der Liste.
+Für News-Publisher gilt: Die Top-3.000 Keywords aus Sistrix sind oft fast ausschließlich Brand-Navigational-Queries. Content-Keywords (wo der Publisher auf Pos. 10–40 rankt) liegen tiefer in der Liste.
 
-**Konsequenz:** Reines Keyword-Matching ergibt 0 Überschneidungen und 100% Typ C — obwohl BILD viele Themenfelder bereits abdeckt.
+**Konsequenz:** Reines Keyword-Matching ergibt 0 Überschneidungen und 100% Typ C — obwohl der Publisher viele Themenfelder bereits abdeckt.
 
 **Lösung: URL-semantisches Matching** (zusätzlich zum Keyword-Matching):
-1. BILD's URL-Cluster aufbauen (welche Pfad-Segmente hat BILD in seiner Top-Liste?)
+1. Publisher-URL-Cluster aufbauen (welche Pfad-Segmente hat der Publisher in seiner Top-Liste?)
 2. Mit Competitor-Pfad-Segmenten abgleichen
 3. Vollständige Überschneidung → aktiv; Teilüberschneidung bei 2+ Pfad-Segmenten → Typ B; keine → Typ C
 
@@ -306,13 +306,13 @@ def classify_gaps_semantic(clusters, publisher_rows, position_threshold=30):
 
 ### Wichtig: Token-Management
 
-Google Trends v1alpha benötigt OAuth2. Das Token läuft nach einigen Wochen ab (`invalid_grant`). Refresh-Skript:
+Google Trends v1alpha benötigt OAuth2. Das Token läuft nach einigen Wochen ab (`invalid_grant`). Neues Token holen:
 
 ```bash
-bash .claude/skills/api-access/get-google-trends-token.sh
+python get_google_trends_token.py  # dein OAuth2-Refresh-Skript
 ```
 
-Danach das Skript erneut ausführen — Sistrix-Daten kommen aus dem 7-Tage-Cache (0s), nur Trends-Calls werden neu gemacht.
+Danach das Analyse-Skript erneut ausführen — Sistrix-Daten kommen idealerweise aus einem lokalen Cache, nur Trends-Calls werden neu gemacht.
 
 ### Scoring
 
@@ -383,7 +383,7 @@ Nach Blacklist-Filter (Spiele, Wetten, Apotheke, Kaufberatung):
   Typ C reduziert auf: ~220–250
 ```
 
-Beispiel-Ergebnis für BILD vs. stern/focus/t-online:
+Beispiel-Ergebnis für einen News-Publisher vs. 3 Wettbewerber:
 
 ```
 TOP TYP C (neue Cluster aufbauen):
@@ -401,13 +401,11 @@ TOP TYP B (Tiefe fehlt):
 
 ## 8. Datenquellen & Abhängigkeiten
 
-| Quelle | Was | Client |
+| Quelle | Was | Zugang |
 |---|---|---|
-| Sistrix API | Keywords + Rankings + URLs | `backend.content_radar.sistrix.domain_keywords_all` |
-| Google Trends v1alpha | Zeitreihe pro Keyword | `backend.google_trends.client.GoogleTrendsClient` |
+| Sistrix API | Keywords + Rankings + URLs | API-Key, offizielles Sistrix API |
+| Google Trends v1alpha | Zeitreihe pro Keyword | OAuth2, Google Cloud Console |
 
-Beide in `next-seo-as-tools`. Credentials in `.env`:
-- `SISTRIX_API_KEY`
-- Google Trends OAuth2 über `~/.google-trends/credentials.json`
-
-Standalone-Skript: `scripts/content_gap_report.py`
+Credentials:
+- `SISTRIX_API_KEY` in `.env`
+- Google Trends OAuth2: `credentials.json` aus der Google Cloud Console (Search Trends API v1alpha aktivieren)
